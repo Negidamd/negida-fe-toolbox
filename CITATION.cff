@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "negida-fe-toolbox: Frequency Extraction (FE) Toolbox for EEG Analysis"
+abstract: "MATLAB toolbox for dominant frequency-based EEG feature extraction (DF, DFV, DFP, IAF, band power) in Lewy body disease."
+type: software
+authors:
+  - family-names: Negida
+    given-names: Ahmed
+    orcid: "https://orcid.org/0000-0001-5363-6369"
+    affiliation: "Virginia Commonwealth University"
+repository-code: "https://github.com/Negidamd/negida-fe-toolbox"
+license: CC-BY-NC-ND-4.0
+version: 1.1.0
+date-released: "2026-09-18"
+keywords:
+  - EEG
+  - dominant frequency
+  - Lewy body disease
+  - MATLAB
+preferred-citation:
+  type: article
+  title: "Resting-state EEG features of cognitive fluctuations across the Lewy body disease spectrum"
+  authors:
+    - family-names: Negida
+      given-names: Ahmed
+      orcid: "https://orcid.org/0000-0001-5363-6369"
+    - family-names: Lageman
+      given-names: Sarah K.
+    - family-names: Ono
+      given-names: Kenchiro
+    - family-names: Ahsan
+      given-names: Moinul
+    - family-names: Mukhopadhyay
+      given-names: Nitai
+    - family-names: Barrett
+      given-names: Matthew J.
+  journal: "Alzheimer's Research & Therapy"
+  year: 2026
+  doi: "10.1186/s13195-026-02148-8"

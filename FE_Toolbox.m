@@ -136,195 +136,80 @@ function FinalRUN_Callback(hObject, eventdata, handles)
 % hObject    handle to FinalRUN (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-        NumofSubj = length(handles.inputfile);
-        if isequal(handles.inputfile,0)
-        disp('User selected Cancel');
-        else
-%         disp(['User selected ', fullfile(handles.path,handles.file)]);
-        [ALLEEG EEG CURRENTSET] = eeglab;
-        allSetFiles = handles.inputfile;
-        targetFolder = handles.inputpath;
-        % Start the loop.
-        for setIdx = 1:length(allSetFiles)
-        % Obtain the file names for loading.
-        loadName = allSetFiles(setIdx); % S001-preprocessedafterICA-Epoches.set
-        EEG = pop_loadset('filename', loadName, 'filepath', targetFolder);
-        EEG = pop_eegfiltnew(EEG, 'locutoff',3,'hicutoff',14);        
-        [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG, EEG, 0);
-        end
+if ~isfield(handles, 'inputfile') || isequal(handles.inputfile, 0)
+    errordlg('Please load one or more EEG .set files first.', 'No input');
+    return;
+end
+if ~isfield(handles, 'outDir') || isequal(handles.outDir, 0)
+    errordlg('Please choose an output folder first.', 'No output folder');
+    return;
+end
+% uigetfile returns a char array (not a cell) when a single file is selected
+allSetFiles = cellstr(handles.inputfile);
+targetFolder = handles.inputpath;
 
-        handles.data = ALLEEG;
-        guidata(hObject, handles)
-        end
-        
-    DF_checkbox = get(handles.DF,'Value');
-    DFV_checkbox = get(handles.DFV,'Value');
-    DFP_checkbox = get(handles.DFP, 'Value');
-    RelativePow_checkbox = get(handles.RelativePow, 'Value');
-    PerChannel_checkbox = get(handles.PerChannel, 'Value');
-    PerEpoch_checkbox = get(handles.PerEpoch, 'Value');
-    
-    delta(1) = handles.delta1;
-    delta(2) = handles.delta2;
-    Theta(1) = handles.Theta1;
-    Theta(2) = handles.Theta2;
-    PreAlpha(1) = handles.PreAlpha1;
-    PreAlpha(2) = handles.PreAlpha2;
-    Alpha(1) = handles.Alpha1;
-    Alpha(2) = handles.Alpha2;
-    Beta(1) = handles.Beta1;
-    Beta(2) = handles.Beta2;
-    Gamma(1) = handles.Gamma1;
-    Gamma(2) = handles.Gamma2;
-    C = {delta,Theta,PreAlpha,Alpha,Beta,Gamma};
-    ALLEEG = handles.data;
-    NumofSubj = size(ALLEEG,2);
-    GeneralInfo = struct();
-    AllResults = struct();
-for subj = 1 : NumofSubj
-    GeneralInfo(subj).SubjID = ALLEEG(subj).filename(1:4); 
-    GeneralInfo(subj).nbchan = size(ALLEEG(subj).data,1);       % Number of Channels
-    GeneralInfo(subj).L = size(ALLEEG(subj).data,2);            % Length of each Epoch
-    GeneralInfo(subj).NumEpoch = size(ALLEEG(subj).data,3);     % Number of Epoch
-    GeneralInfo(subj).Fs = ALLEEG(subj).srate;                 % Sampling rate
-    for channels = 1 : GeneralInfo(subj).nbchan
-        for Epochs = 1 : GeneralInfo(subj).NumEpoch
-            data = squeeze(ALLEEG(subj).data(channels,:,Epochs));  % EEG signal of 2 second Epoches 
-            [spectra, freqs] = PowerSpectrum(data,GeneralInfo(subj).Fs);
-            % Dominant Frequency for entire spectrum
-            [~, idx_spectra] = max(spectra);
-            DF(channels,Epochs) = freqs(idx_spectra);
-            % Dominant frequency for specific band
-           for Band_indx = 1:length(C)
-            Idx = find(freqs>=C{Band_indx}(1) & freqs<=C{Band_indx}(2));    
-            [~, idx_] = max(spectra(Idx));
-            Freqs  = freqs(Idx);
-            DF_V(channels,Epochs,Band_indx) = Freqs(idx_);
-            % Mean Relative power for each band
-            meanPS(channels,Epochs,Band_indx) = mean(10.^(spectra(Idx)/10));
-           end         
-        end
-       DFV(channels,:) = [std(DF_V(channels,:,1)),std(DF_V(channels,:,2)),std(DF_V(channels,:,3)),...
-                        std(DF_V(channels,:,4)),std(DF_V(channels,:,5)),std(DF_V(channels,:,6))];
-        % Dominant Frequency Prevelance for Each Channel
-        Epoch_DFP = DF(channels,:);
-        for Band_idx = 1:length(C)
-            Idx1 = find(Epoch_DFP>=C{Band_idx}(1) & Epoch_DFP<=C{Band_idx}(2));    
-            DFP(channels,Band_idx) = numel(Idx1)/numel(Epoch_DFP) * 100;
-        end
-       % Relative Power for each channel 
-        for Band_indx = 1:length(C)
-            Idx = find(freqs>=C{Band_indx}(1) & freqs<=C{Band_indx}(2));    
-            meanPS(channels,Epochs,Band_indx) = mean(10.^(spectra/10));
-        end
-    end
-    AllResults(subj).MeanPS = squeeze(mean(meanPS,2));
-    AllResults(subj).DF = DF;
-    AllResults(subj).DFvariability = DFV;
-    AllResults(subj).DFP = DFP;
-    clear meanPS DF DFV DFP
+sel.DF = get(handles.DF, 'Value');
+sel.DFV = get(handles.DFV, 'Value');
+sel.DFP = get(handles.DFP, 'Value');
+sel.RelativePow = get(handles.RelativePow, 'Value');
+sel.PerChannel = get(handles.PerChannel, 'Value');
+sel.PerEpoch = get(handles.PerEpoch, 'Value');
+
+Bands = {'Delta',    [handles.delta1    handles.delta2];
+         'Theta',    [handles.Theta1    handles.Theta2];
+         'PreAlpha', [handles.PreAlpha1 handles.PreAlpha2];
+         'Alpha',    [handles.Alpha1    handles.Alpha2];
+         'Beta',     [handles.Beta1     handles.Beta2];
+         'Gamma',    [handles.Gamma1    handles.Gamma2]};
+bandLimits = cell2mat(Bands(:, 2));
+if any(isnan(bandLimits(:))) || any(bandLimits(:, 1) > bandLimits(:, 2))
+    errordlg('Every band needs numeric limits with low <= high.', 'Invalid band');
+    return;
 end
 
-for i=1:19
-    Rowname{i}=['Channnel',num2str(i)];
+if isfield(handles, 'filterChoice')        % set by tests to skip the dialog
+    answer = handles.filterChoice;
+else
+    answer = questdlg(['Apply a 3-14 Hz band-pass filter before feature extraction? ' ...
+        'Choose "No" if your data are already filtered (avoids filtering twice). ' ...
+        'Bands outside 3-14 Hz are reported as NaN when this filter is applied.'], ...
+        'Band-pass filter', 'Yes (3-14 Hz)', 'No', 'Cancel', 'Yes (3-14 Hz)');
 end
-variablename = { 'Delta', 'Theta', 'PreAlpha','Alpha','Beta','Gamma'};
+if isempty(answer) || strcmp(answer, 'Cancel')
+    return;
+end
+applyFilter = strcmp(answer, 'Yes (3-14 Hz)');
+passband = [];
+if applyFilter, passband = [3 14]; end
 
-    if DF_checkbox
-      % write your function here for cell diameter
-      SUB = length(AllResults);
-      allSetFiles = handles.inputfile;
-      for j=1:SUB
-        Epoch = AllResults(j).DF;
-        T = array2table(Epoch, 'RowNames',Rowname);
-        filename = strcat('EEG_Results_DF_forallEpochandChannel', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-        writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end
-     end
-     if DFV_checkbox && DF_checkbox
-      % write you function here for cell size
-      for j=1:SUB
-        Band = AllResults(j).DFvariability;
-%         Band = DFV;
-        T = array2table(Band,'RowNames',Rowname,'VariableNames',variablename);
-        filename = strcat('EEG_Results_DFV_Toolbox', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-         writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end
-%     else
-% %         display('Please select the DF check box first');
-%         errordlg('Please select the DF check box first.','Error Code I');
-%         return;
-     end
-     if DFP_checkbox && DF_checkbox
-      % write you function here for cell size
-%       display('Both DFP checkbox is selected');
-      for j=1:SUB
-        Band = AllResults(j).DFP;
-%         Band = DFV;
-        T = array2table(round(Band,2),'RowNames',Rowname,'VariableNames',variablename);
-        filename = strcat('EEG_Results_DFP_Toolbox', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-         writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end      
-%     else
-% %         display('Please select the DF check box first');
-%         errordlg('Please select the DF check box first.','Error Code I');
-%         return;
-% 
-     end
+if ~exist('pop_loadset', 'file')
+    eeglab('nogui');   % add EEGLAB to the path without opening its window
+end
 
-     if RelativePow_checkbox && DF_checkbox
-      % write you function here for cell size
-%       display('Both RelativePow checkbox is selected');
-      for j=1:SUB
-          Band = AllResults(j).MeanPS;
-%         Band = DFV;
-        T = array2table(round(Band,2),'RowNames',Rowname,'VariableNames',variablename);
-        filename = strcat('EEG_Results_RelativePow_Toolbox', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-         writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end
-%     else
-% %         display('Please select the DF check box first');
-%         errordlg('Please select the DF check box first.','Error Code I');
-%         return;
-     end
-    if PerChannel_checkbox && DF_checkbox
-%        display('Both DF and PerChannel checkboxes are Selected');
-      for j=1:SUB
-        AvgofEpochsforEachChannel = mean(AllResults(j).DF,2);
-        T = array2table(AvgofEpochsforEachChannel, 'RowNames',Rowname);
-        filename = strcat('EEG_Results_DF_PerChannel', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-        writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end
-%        else 
-% %          display('Please select the DF check box first');  
-%         errordlg('Please select the DF check box first.','Error Code I');
-%         return;
+summaries = cell(numel(allSetFiles), 1);
+sheetNames = cell(numel(allSetFiles), 1);
+for setIdx = 1:numel(allSetFiles)
+    loadName = allSetFiles{setIdx};
+    EEG = pop_loadset('filename', loadName, 'filepath', targetFolder);
+    if applyFilter
+        EEG = pop_eegfiltnew(EEG, 'locutoff', 3, 'hicutoff', 14);
     end
-    if PerEpoch_checkbox && DF_checkbox
-      for j=1:SUB
-        AvgofChforEpoch = mean(AllResults(j).DF,1);
-        T = array2table(AvgofChforEpoch);
-        filename = strcat('EEG_Results_DF_PerEpoch', '.xlsx');
-        Subject_name = char(extractBefore(allSetFiles(j), "."));
-        Results_file = [handles.outDir filesep filename];
-        writetable(T, Results_file,'WriteRowNames',true, 'Sheet',Subject_name);
-      end
-%        else 
-% %          display('Please select the DF check box first');  
-%         errordlg('Please select the DF check box first.','Error Code I');
-%         return;
+    % Each subject is processed independently, so no values carry over
+    % between subjects with different numbers of epochs or channels.
+    R = fe_extract(EEG, 'Bands', Bands, 'Passband', passband);
+    sheet = fe_sheetname(loadName);
+    if any(strcmp(sheet, sheetNames(1:setIdx-1)))
+        sheet = fe_sheetname(sprintf('%s_%d', sheet(1:min(end, 27)), setIdx));
     end
- 
+    sheetNames{setIdx} = sheet;
+    summaries{setIdx} = fe_write_results(R, sheet, handles.outDir, sel);
+end
+writetable(vertcat(summaries{:}), fullfile(handles.outDir, 'EEG_Results_Summary.xlsx'), ...
+    'Sheet', 'Summary', 'WriteMode', 'overwritesheet');
+if ~isfield(handles, 'filterChoice')
+    msgbox(sprintf('Finished: %d file(s) processed. Results saved to %s', ...
+        numel(allSetFiles), handles.outDir), 'Done');
+end
 
 
 function Deltalow_Callback(hObject, eventdata, handles)
