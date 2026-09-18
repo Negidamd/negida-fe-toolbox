@@ -41,10 +41,3 @@
   on its own, and re-running overwrites existing result sheets.
 - **Dependencies**: the Signal Processing Toolbox is no longer required, and
   EEGLAB is loaded without opening its main window.
-
-### Compatibility with 1.0
-- `PowerSpectrum` now returns a one-sided power spectral density instead of an
-  amplitude spectrum.
-- Relative power, DFV and DFP values differ from 1.0. DF differs only for
-  epochs whose peak lay outside the filter passband. Re-run analyses with 1.1.0
-  rather than mixing values from the two versions.
